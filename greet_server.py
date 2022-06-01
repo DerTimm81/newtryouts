@@ -1,5 +1,6 @@
 # this import will allow me to see and define the number of workers on my server
 from concurrent import futures
+from email import message
 
 # this import will help me to understand some timing aspects when streaming
 import time
@@ -14,7 +15,12 @@ import greet_pb2_grpc
 # now, we create the server for my micro service architecture
 # we will also implement the services that we defined in the proto-file inside the Greeter
 class GreeterServicer(greet_pb2_grpc.GreeterServicer):
-    # uniary
+
+    ##################################################
+    # Uniary Communication
+    # means more or less a ping-pong communication
+    # The client is sending a request to the server
+    # the server responds with a response
     def SayHello(self, request, context):
         # let's first print out what we received from a client
         print("Received Request from Say Hello: ")
@@ -31,17 +37,51 @@ class GreeterServicer(greet_pb2_grpc.GreeterServicer):
         return hello_reply
 
 
-    # server-side streaming
+    ################################################
+    # Server-side streaming
+    # means, once the client decides to go for this message, the server keeps sending messages
     def ParrotSaysHello(self, request, context):
-        return super().ParrotSaysHello(request, context)
+        print("Parrt Says Hello Request Message Received: ")
+        print(request)
+
+        # of course, we do not want to run infinitely throught the communication
+        # that would make us want to kill the service
+        # therefore, we define a little loop that will stop the broadcast after 3 messages
+        for i in range(3):
+            hello_reply = greet_pb2.HelloReply()
+            hello_reply.message = f"{request.greeting} {request.name} {i + 1}"
+
+            # if you do streaming, you do not actually return once, but you yield
+            yield hello_reply
+
+            # for us now to see that there is really a time sequence, we will add a little sleep function
+            time.sleep(3)
+
 
     # client-side streaming
     def ChattyClientSaysHello(self, request_iterator, context):
-        return super().ChattyClientSaysHello(request_iterator, context)
+        delayed_reply = greet_pb2.DelayedReply()
+        for request in request_iterator:
+            print("ChattyClientSaysHello Request Made:")
+            print(request)
+            delayed_reply.request.append(request)
+
+        delayed_reply.message = f"You have sent {len(delayed_reply.request)} messages. Please expect a delayed response."
+        return delayed_reply
 
     # bi-directional streaming
     def InteractingHello(self, request_iterator, context):
-        return super().InteractingHello(request_iterator, context)
+        
+        # we want to print out every request the server receives from a client whenever it comes in
+        for request in request_iterator:
+            print("Interactive Hello Request Received")
+            print(request)
+
+            hello_reply = greet_pb2.HelloReply()
+            hello_reply.message = f"{request.greeting} {request.name}"
+
+            # as we do not want to close that function, we go with yield and wait for the next message to come
+            yield hello_reply
 
 
 # now as we defined what the server shall be able to implement, we init the server itself

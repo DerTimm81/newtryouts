@@ -20,6 +20,8 @@ We will ask the compiler to store the compiled files in the same folder as the p
 Running the python code
 ------------------------
 
+IMPORTANT: Common issue is the fact that you do not save and re-run the scripts before executing. In those cases, error messages occur as the server is not understanding your request.
+
 you will always want to start the grpc server first by calling
 --> python3 greet_server.py
 
